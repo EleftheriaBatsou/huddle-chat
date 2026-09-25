@@ -394,6 +394,12 @@ export default async function api(app: FastifyInstance) {
       return searchMessages(query, ids)
     })
 
+    auth.post('/api/admin/reprocess-attachments', async () => {
+      const rows = await q<{ id: number }>('SELECT id FROM attachments ORDER BY id')
+      for (const r of rows) await enqueue('jobs.attachment', { attachmentId: r.id })
+      return { queued: rows.length }
+    })
+
     auth.post('/api/admin/reindex', async () => {
       await enqueue('jobs.reindex', { requestedAt: new Date().toISOString() })
       return { queued: true }

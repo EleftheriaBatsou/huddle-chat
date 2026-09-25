@@ -1,6 +1,13 @@
 import os from 'node:os'
 import crypto from 'node:crypto'
 
+// Zerops container hostnames look like "node-id-2.runtime.appstage.zerops" → "appstage-n2".
+function instanceName() {
+  const parts = os.hostname().split('.')
+  if (parts.length >= 3 && parts[0]!.startsWith('node-id-')) return `${parts[2]}-n${parts[0]!.slice(8)}`
+  return `${os.hostname().slice(0, 12)}-${crypto.randomBytes(2).toString('hex')}`
+}
+
 function req(name: string): string {
   const v = process.env[name]
   if (!v) throw new Error(`Missing required env var ${name}`)
@@ -11,7 +18,7 @@ export const config = {
   dev: process.env.NODE_ENV !== 'production',
   port: Number(process.env.PORT ?? 3000),
   // Short, human-readable id for this container — shown in the UI to prove multi-instance fan-out.
-  instance: `${os.hostname().slice(-6)}-${crypto.randomBytes(2).toString('hex')}`,
+  instance: instanceName(),
   appSecret: req('APP_SECRET'),
   databaseUrl: req('DATABASE_URL'),
   redisUrl: req('REDIS_URL'),

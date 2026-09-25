@@ -131,7 +131,6 @@ const reactedBy = (ids: number[]) => ids.map((id) => chat.userName(id).split(' '
 .msg {
   position: relative; display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 0 8px;
   padding: 2px 20px 2px 16px; transition: background 0.2s;
-  content-visibility: auto; contain-intrinsic-size: auto 44px;
 }
 .msg.header { margin-top: 10px; padding-top: 6px; }
 .msg:hover { background: #FAF9FF; }

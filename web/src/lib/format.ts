@@ -40,5 +40,7 @@ export function escapeHtml(s: string) {
 
 /** Search snippets arrive with \u0002/\u0003 markers — escape first, then turn markers into <mark>. */
 export function snippetHtml(s: string) {
-  return escapeHtml(s).replace(/\u0002/g, '<mark>').replace(/\u0003/g, '</mark>')
+  // Snippets are shown as plain text, so drop inline markdown markers (**bold**, _italic_, `code`).
+  const plain = s.replace(/\*\*|__|`/g, '').replace(/(^|\s)_(\S)/g, '$1$2').replace(/(\S)_(\s|$)/g, '$1$2')
+  return escapeHtml(plain).replace(/\u0002/g, '<mark>').replace(/\u0003/g, '</mark>')
 }

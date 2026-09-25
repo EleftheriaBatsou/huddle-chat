@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUpdate, onMounted, onUpdated, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useChat, type LocalMessage } from '../stores/chat'
 import { dayLabel } from '../lib/format'
 import MessageItem from './MessageItem.vue'
@@ -8,6 +8,7 @@ import Icon from './Icon.vue'
 const props = defineProps<{ channelId: number }>()
 const chat = useChat()
 const el = ref<HTMLElement | null>(null)
+const inner = ref<HTMLElement | null>(null)
 const view = computed(() => chat.views.get(props.channelId))
 const atBottom = ref(true)
 const newBelow = ref(0)
@@ -18,6 +19,16 @@ interface Row {
   day: string | null
   unreadMark: boolean
 }
+
+// Sections per day so each sticky day pill is only sticky within its own day (the next one pushes it out).
+const days = computed(() => {
+  const out: { label: string; key: string; rows: Row[] }[] = []
+  for (const r of rows.value) {
+    if (r.day || !out.length) out.push({ label: r.day ?? '', key: `${r.m.createdAt.slice(0, 10)}-${r.m.id}`, rows: [] })
+    out[out.length - 1]!.rows.push(r)
+  }
+  return out
+})
 
 // Group consecutive messages by the same author (within 5 minutes) under one header; insert day dividers.
 const rows = computed<Row[]>(() => {
@@ -35,37 +46,49 @@ const rows = computed<Row[]>(() => {
   })
 })
 
-// ---- scroll anchoring: keep the viewport stable when older history is prepended ----
-let snapshot: { height: number; top: number; firstId: number | undefined; wasBottom: boolean; lastId: number | undefined } | null = null
-onBeforeUpdate(() => {
-  const e = el.value
-  if (!e) return
-  snapshot = {
-    height: e.scrollHeight,
-    top: e.scrollTop,
-    firstId: view.value?.messages[0]?.id,
-    lastId: view.value?.messages.at(-1)?.id,
-    wasBottom: e.scrollHeight - e.scrollTop - e.clientHeight < 140,
-  }
-})
-onUpdated(() => {
+// ---- scroll anchoring ----
+// flush: 'pre' watchers run after the data changed but BEFORE the DOM is patched, so the old
+// scroll metrics are still measurable; the correction is applied once the new DOM is in place.
+watch(
+  () => view.value?.messages[0]?.id,
+  (now, before) => {
+    const e = el.value
+    const v = view.value
+    if (!e || !v || before == null || now === before || !v.messages.some((m) => m.id === before)) return
+    const h = e.scrollHeight
+    const t = e.scrollTop
+    nextTick(() => {
+      e.scrollTop = t + (e.scrollHeight - h)
+      maybeLoadMore()
+    })
+  },
+  { flush: 'pre' },
+)
+
+watch(
+  () => view.value?.messages.at(-1)?.id,
+  (now, before) => {
+    const e = el.value
+    const last = view.value?.messages.at(-1)
+    if (!e || !last || now === before || before == null) return
+    const wasBottom = e.scrollHeight - e.scrollTop - e.clientHeight < 140
+    const mine = last.userId === chat.me?.id
+    nextTick(() => {
+      if (wasBottom || mine) scrollToBottom(true)
+      else if (!view.value?.hasNewer) newBelow.value++
+    })
+  },
+  { flush: 'pre' },
+)
+
+/** Near either edge with more history available? Fetch it — covers short pages where no scroll event fires. */
+function maybeLoadMore() {
   const e = el.value
   const v = view.value
-  if (!e || !snapshot || !v) return
-  const firstNow = v.messages[0]?.id
-  const lastNow = v.messages.at(-1)
-  if (firstNow !== snapshot.firstId && v.messages.some((m) => m.id === snapshot!.firstId)) {
-    // Prepended older messages: shift by the added height so nothing jumps.
-    e.scrollTop = snapshot.top + (e.scrollHeight - snapshot.height)
-  } else if (lastNow && lastNow.id !== snapshot.lastId) {
-    const mine = lastNow.userId === chat.me?.id
-    if (snapshot.wasBottom || mine) scrollToBottom(!mine || lastNow.id > 0)
-    else newBelow.value++
-  } else if (snapshot.wasBottom) {
-    e.scrollTop = e.scrollHeight
-  }
-  snapshot = null
-})
+  if (!e || !v || v.loading) return
+  if (e.scrollTop < 400 && v.hasOlder) chat.loadOlder(props.channelId)
+  else if (e.scrollHeight - e.scrollTop - e.clientHeight < 140 && v.hasNewer) chat.loadNewer(props.channelId)
+}
 
 function scrollToBottom(smooth = false) {
   const e = el.value
@@ -80,10 +103,9 @@ function onScroll() {
   atBottom.value = e.scrollHeight - e.scrollTop - e.clientHeight < 140
   if (atBottom.value) {
     newBelow.value = 0
-    if (view.value.hasNewer) chat.loadNewer(props.channelId)
-    else chat.markRead(props.channelId)
+    if (!view.value.hasNewer) chat.markRead(props.channelId)
   }
-  if (e.scrollTop < 400 && view.value.hasOlder) chat.loadOlder(props.channelId)
+  maybeLoadMore()
 }
 
 async function focusHighlight() {
@@ -99,15 +121,37 @@ async function latest() {
   scrollToBottom(true)
 }
 
-onMounted(focusHighlight)
+// Late layout changes (images decoding, thumbnails arriving) must not un-stick a reader who is at the bottom.
+let ro: ResizeObserver | null = null
+let io: IntersectionObserver | null = null
+const topSentinel = ref<HTMLElement | null>(null)
+onMounted(() => {
+  focusHighlight()
+  ro = new ResizeObserver(() => {
+    if (atBottom.value && !chat.highlightId && el.value) el.value.scrollTop = el.value.scrollHeight
+  })
+  if (inner.value) ro.observe(inner.value)
+  // Sentinel-based trigger: fires even when the list is already pinned at scrollTop 0.
+  io = new IntersectionObserver((entries) => entries.some((x) => x.isIntersecting) && maybeLoadMore(), {
+    root: el.value,
+    rootMargin: '400px 0px 0px 0px',
+  })
+  if (topSentinel.value) io.observe(topSentinel.value)
+})
+onBeforeUnmount(() => {
+  ro?.disconnect()
+  io?.disconnect()
+})
+watch(() => view.value?.loading, (now) => !now && nextTick(maybeLoadMore))
 watch(() => chat.highlightId, (id) => id && focusHighlight())
 watch(() => view.value?.loading, (now, before) => before === 'initial' && !now && focusHighlight())
 </script>
 
 <template>
   <div class="wrap">
-    <div ref="el" class="scroll list" @scroll.passive="onScroll">
-      <div class="top">
+    <div ref="el" class="scroll list msg-scroll" @scroll.passive="onScroll">
+      <div ref="inner">
+      <div ref="topSentinel" class="top">
         <div v-if="view?.loading === 'older' || view?.loading === 'initial'" class="loader"><i /><i /><i /></div>
         <div v-else-if="view && !view.hasOlder && view.messages.length" class="start">
           <div class="start-badge">#</div>
@@ -115,13 +159,16 @@ watch(() => view.value?.loading, (now, before) => before === 'initial' && !now &
           <p>{{ chat.channelById(channelId)?.topic }}</p>
         </div>
       </div>
-      <template v-for="r in rows" :key="r.m.clientId ?? r.m.id">
-        <div v-if="r.day" class="day"><span>{{ r.day }}</span></div>
-        <div v-if="r.unreadMark" class="unread-mark"><span>New</span></div>
-        <MessageItem :m="r.m" :header="r.header" :highlight="chat.highlightId === r.m.id" />
-      </template>
+      <section v-for="d in days" :key="d.key" class="day-group">
+        <div v-if="d.label" class="day"><span>{{ d.label }}</span></div>
+        <template v-for="r in d.rows" :key="r.m.clientId ?? r.m.id">
+          <div v-if="r.unreadMark" class="unread-mark"><span>New</span></div>
+          <MessageItem :m="r.m" :header="r.header" :highlight="chat.highlightId === r.m.id" />
+        </template>
+      </section>
       <div v-if="view?.loading === 'newer'" class="loader"><i /><i /><i /></div>
       <div class="spacer" />
+      </div>
     </div>
     <Transition name="pill">
       <button v-if="newBelow || view?.hasNewer || !atBottom" class="pill" :class="{ loud: newBelow }" @click="latest">
