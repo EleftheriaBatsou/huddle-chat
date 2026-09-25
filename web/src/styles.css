@@ -1,0 +1,103 @@
+:root {
+  --chrome: #FBFAFF;
+  --surface: #FFFFFF;
+  --ink: #1B1B2F;
+  --ink-2: #4A4A68;
+  --muted: #8A8AA3;
+  --line: #ECEAF7;
+  --line-2: #E2DFF3;
+  --accent: #7C5CFF;
+  --accent-ink: #5B3DF0;
+  --accent-soft: #F1EDFF;
+  --accent-softer: #F7F5FF;
+  --teal: #15D7C4;
+  --yellow: #FFC93C;
+  --coral: #FF5C7C;
+  --blue: #0D99FF;
+  --green: #2BD968;
+  --online: #2BD968;
+  --away: #FFC93C;
+  --offline: #A0AEC0;
+  --radius: 16px;
+  --radius-sm: 10px;
+  --shadow-sm: 0 1px 2px rgba(27, 27, 47, 0.06), 0 1px 1px rgba(27, 27, 47, 0.04);
+  --shadow: 0 6px 24px -8px rgba(60, 40, 160, 0.18), 0 2px 6px rgba(27, 27, 47, 0.05);
+  --shadow-lg: 0 30px 80px -20px rgba(40, 20, 120, 0.35), 0 8px 24px rgba(27, 27, 47, 0.08);
+  --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --font: 'Plus Jakarta Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+html, body, #app { height: 100%; margin: 0; }
+body {
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--ink);
+  background: var(--chrome);
+  -webkit-font-smoothing: antialiased;
+}
+button { font: inherit; color: inherit; cursor: pointer; border: 0; background: none; padding: 0; }
+input, textarea { font: inherit; color: inherit; }
+a { color: var(--accent-ink); }
+::selection { background: #DCD2FF; }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  height: 40px; padding: 0 18px; border-radius: 12px;
+  background: var(--accent); color: #fff; font-weight: 700;
+  box-shadow: 0 6px 16px -6px rgba(124, 92, 255, 0.6);
+  transition: transform 0.25s var(--spring), box-shadow 0.2s, background 0.2s;
+}
+.btn:hover { background: var(--accent-ink); transform: translateY(-1px); }
+.btn:active { transform: scale(0.96); }
+.btn:disabled { opacity: 0.5; pointer-events: none; }
+.btn.ghost { background: var(--accent-soft); color: var(--accent-ink); box-shadow: none; }
+.btn.ghost:hover { background: #E6DFFF; }
+
+.icon-btn {
+  width: 34px; height: 34px; border-radius: 10px; display: inline-grid; place-items: center;
+  color: var(--ink-2); transition: background 0.15s, color 0.15s, transform 0.25s var(--spring);
+}
+.icon-btn:hover { background: var(--accent-soft); color: var(--accent-ink); }
+.icon-btn:active { transform: scale(0.9); }
+.icon-btn svg { width: 18px; height: 18px; }
+
+.field {
+  width: 100%; height: 44px; padding: 0 14px; border-radius: 12px; border: 1.5px solid var(--line-2);
+  background: var(--surface); outline: none; transition: border-color 0.15s, box-shadow 0.15s;
+}
+.field:focus { border-color: var(--accent); box-shadow: 0 0 0 4px rgba(124, 92, 255, 0.15); }
+
+.kbd {
+  display: inline-flex; align-items: center; gap: 2px; padding: 1px 6px; border-radius: 6px;
+  font-size: 11px; font-weight: 700; color: var(--muted); background: var(--surface); border: 1px solid var(--line-2);
+  box-shadow: 0 1px 0 var(--line-2);
+}
+
+.dot { width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--surface); flex: none; }
+.dot.online { background: var(--online); }
+.dot.away { background: var(--away); }
+.dot.offline { background: var(--offline); }
+
+.scroll { overflow-y: auto; scrollbar-width: thin; scrollbar-color: #D9D4F0 transparent; }
+
+/* message body typography */
+.md p { margin: 0; }
+.md p + p { margin-top: 6px; }
+.md code { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 0.86em; background: #F2F0FA; padding: 1px 5px; border-radius: 6px; }
+.md pre { background: #1B1B2F; color: #E9E6FF; padding: 12px 14px; border-radius: 12px; overflow-x: auto; margin: 6px 0; }
+.md pre code { background: none; padding: 0; color: inherit; }
+.md blockquote { margin: 4px 0; padding: 2px 12px; border-left: 3px solid var(--line-2); color: var(--ink-2); }
+.md ul, .md ol { margin: 4px 0; padding-left: 22px; }
+.md a { text-decoration: none; font-weight: 600; }
+.md a:hover { text-decoration: underline; }
+.mention { background: var(--accent-soft); color: var(--accent-ink); padding: 0 4px; border-radius: 6px; font-weight: 700; }
+.mention.me { background: #FFE3EA; color: #D6244A; }
+mark { background: #FFEFB3; color: inherit; padding: 0 2px; border-radius: 4px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}

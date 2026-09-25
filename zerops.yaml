@@ -1,0 +1,74 @@
+zerops:
+  # Dev: source is deployed as-is; the dev server (Fastify + Vite HMR on :3000) is started via zerops_dev_server.
+  - setup: dev
+    build:
+      base: ubuntu/nodejs@24
+      buildCommands:
+        - npm install
+      deployFiles: [.]
+      cache: [node_modules]
+    run:
+      base: ubuntu/nodejs@24
+      ports:
+        - port: 3000
+          httpSupport: true
+      envVariables:
+        NODE_ENV: development
+        DATABASE_URL: postgresql://${db_user}:${db_password}@db:${db_port}/${db_dbName}
+        REDIS_URL: ${cache_connectionString}
+        NATS_HOST: ${queue_hostname}
+        NATS_PORT: ${queue_port}
+        NATS_USER: ${queue_user}
+        NATS_PASS: ${queue_password}
+        MEILI_HOST: http://search:7700
+        MEILI_MASTER_KEY: ${search_masterKey}
+        S3_ENDPOINT: ${storage_apiUrl}
+        S3_BUCKET: ${storage_bucketName}
+        S3_REGION: us-east-1
+        S3_KEY: ${storage_accessKeyId}
+        S3_SECRET: ${storage_secretAccessKey}
+      start: zsc noop --silent
+
+  # Prod (appstage): compiled Vue bundle + bundled server; horizontally scalable — instances share state via Valkey pub/sub.
+  - setup: prod
+    build:
+      base: ubuntu/nodejs@24
+      buildCommands:
+        - npm ci
+        - npm run build
+        - npm prune --omit=dev
+      deployFiles:
+        - dist
+        - node_modules
+        - package.json
+      cache: [node_modules]
+    deploy:
+      readinessCheck:
+        httpGet:
+          port: 3000
+          path: /api/health
+    run:
+      base: ubuntu/nodejs@24
+      ports:
+        - port: 3000
+          httpSupport: true
+      envVariables:
+        NODE_ENV: production
+        DATABASE_URL: postgresql://${db_user}:${db_password}@db:${db_port}/${db_dbName}
+        REDIS_URL: ${cache_connectionString}
+        NATS_HOST: ${queue_hostname}
+        NATS_PORT: ${queue_port}
+        NATS_USER: ${queue_user}
+        NATS_PASS: ${queue_password}
+        MEILI_HOST: http://search:7700
+        MEILI_MASTER_KEY: ${search_masterKey}
+        S3_ENDPOINT: ${storage_apiUrl}
+        S3_BUCKET: ${storage_bucketName}
+        S3_REGION: us-east-1
+        S3_KEY: ${storage_accessKeyId}
+        S3_SECRET: ${storage_secretAccessKey}
+      start: npm start
+      healthCheck:
+        httpGet:
+          port: 3000
+          path: /api/health
