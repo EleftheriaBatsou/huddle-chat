@@ -1,6 +1,6 @@
 # Huddle — real-time community chat
 
-<a href="https://stats.uptimerobot.com/JOfU0O8Wwd?utm_source=status_badge&utm_medium=referral" target="_blank" rel="noopener"><img src="https://badge.uptimerobot.com/psp/cb332f0743246ac1c93937031f61885d.svg?style=text&theme=dark" alt="Huddle chat uptime status"></a>
+![Uptime SLA](https://badge.uptimerobot.com/sla/97697e111f119876c1009ec774c51138.svg?theme=light)
 
 A self-hosted mini Slack / Discord: channels, live messages, typing indicators, presence, threads, reactions, file attachments and instant typo-tolerant search. Built and deployed on [Zerops](https://zerops.io) with ZCP (Zerops Control Plane).
 
